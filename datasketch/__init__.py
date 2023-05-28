@@ -8,8 +8,8 @@ try:
     import pyximport
 
     pyximport.install(inplace=True)
-    from datasketch.clshforest import CMinHashLSHForest
-    print("Using CMinHashLSHForest")
+    from datasketch.clshforest import CMinHashLSHForest as MinHashLSHForest
+
 except:
     from datasketch.lshforest import MinHashLSHForest
 from datasketch.lshensemble import MinHashLSHEnsemble
