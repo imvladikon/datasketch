@@ -47,6 +47,8 @@ setup(
     ],
     keywords='database datamining',
     packages=find_packages(include=['datasketch*']),
+    package_data={'datasketch': ['*.pyx', '*.pxd', '*.pyxbld']},
+    include_package_data=True,
     install_requires=[
         'numpy>=1.11',
         'scipy>=1.0.0',
