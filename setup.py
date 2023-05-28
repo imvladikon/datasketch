@@ -50,6 +50,7 @@ setup(
     install_requires=[
         'numpy>=1.11',
         'scipy>=1.0.0',
+        'cython>=0.27.3',
     ],
     extras_require={
         'cassandra': [
