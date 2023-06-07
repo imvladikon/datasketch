@@ -1,60 +1,77 @@
-from collections import deque, Counter
 import struct
+from collections import deque, Counter
 
-import numpy as np
-from datasketch.storage import _random_name
 from datasketch.lsh import integrate, MinHashLSH
 from datasketch.lshensemble_partition import optimal_partitions
+from datasketch.storage import _random_name
 
 
-def _false_positive_probability(threshold, b, r, xq):
-    '''
-    Compute the false positive probability given the containment threshold.
-    xq is the ratio of x/q.
-    '''
-    _probability = lambda t : 1 - (1 - (t/(1 + xq - t))**float(r))**float(b)
-    if xq >= threshold:
-        a, err = integrate(_probability, 0.0, threshold)
-        return a
-    a, err = integrate(_probability, 0.0, xq)
-    return a
+
+class OptimalParam:
+
+    def __init__(self, num_perm, max_r, xq, false_positive_weight, false_negative_weight):
+        self.num_perm = num_perm
+        self.max_r = max_r
+        self.xq = xq
+        self.false_positive_weight = false_positive_weight
+        self.false_negative_weight = false_negative_weight
+
+    def _metrics(self, threshold, b, r):
+        '''
+        Compute the false positive probability given the containment threshold.
+        xq is the ratio of x/q.
+        '''
+
+        def _probability_of_collision(t):
+            '''
+            Compute the probability of collision given the containment threshold.
+            xq is the ratio of x/q.
+            '''
+            return 1 - (1 - (t / (1 + self.xq - t)) ** float(r)) ** float(b)
+
+        def _false_positive_probability():
+            if xq >= threshold:
+                a, _ = integrate(_probability_of_collision, 0.0, threshold)
+                return a
+            a, _ = integrate(_probability_of_collision, 0.0, self.xq)
+            return a
+
+        def _false_negative_probability():
+            '''
+            Compute the false negative probability given the containment threshold
+            '''
+            if xq >= 1.0:
+                a, _ = integrate(_probability_of_collision, threshold, 1.0)
+                return a
+            if xq >= threshold:
+                a, _ = integrate(_probability_of_collision, threshold, xq)
+                return a
+            return 0.0
+
+        return _false_positive_probability(), _false_negative_probability()
+
+    def __call__(self, threshold):
+        '''
+        Compute the optimal parameters that minimizes the weighted sum
+        of probabilities of false positive and false negative.
+        xq is the ratio of x/q.
+        '''
+        min_error = float("inf")
+        opt = (0, 0)
+        for b in range(1, num_perm + 1):
+            for r in range(1, max_r + 1):
+                if b * r > num_perm:
+                    continue
+                fp, fn = self._metrics(threshold, b, r)
+                error = fp * self.false_positive_weight + fn * false_negative_weight
+                if error < min_error:
+                    min_error = error
+                    opt = (b, r)
+        return opt
 
 
-def _false_negative_probability(threshold, b, r, xq):
-    '''
-    Compute the false negative probability given the containment threshold
-    '''
-    _probability = lambda t : 1 - (1 - (1 - (t/(1 + xq - t))**float(r))**float(b))
-    if xq >= 1.0:
-        a, err = integrate(_probability, threshold, 1.0)
-        return a
-    if xq >= threshold:
-        a, err = integrate(_probability, threshold, xq)
-        return a
-    return 0.0
-
-
-def _optimal_param(threshold, num_perm, max_r, xq, false_positive_weight,
-        false_negative_weight):
-    '''
-    Compute the optimal parameters that minimizes the weighted sum
-    of probabilities of false positive and false negative.
-    xq is the ratio of x/q.
-    '''
-    min_error = float("inf")
-    opt = (0, 0)
-    for b in range(1, num_perm+1):
-        for r in range(1, max_r+1):
-            if b*r > num_perm:
-                continue
-            fp = _false_positive_probability(threshold, b, r, xq)
-            fn = _false_negative_probability(threshold, b, r, xq)
-            error = fp*false_positive_weight + fn*false_negative_weight
-            if error < min_error:
-                min_error = error
-                opt = (b, r)
-    return opt
-
+def _optimal_param(threshold, num_perm, max_r, xq, false_positive_weight, false_negative_weight):
+    return OptimalParam(num_perm, max_r, xq, false_positive_weight, false_negative_weight)(threshold)
 
 class MinHashLSHEnsemble(object):
     '''
@@ -104,7 +121,7 @@ class MinHashLSHEnsemble(object):
     '''
 
     def __init__(self, threshold=0.9, num_perm=128, num_part=16, m=8,
-            weights=(0.5,0.5), storage_config=None, prepickle=None):
+                 weights=(0.5, 0.5), storage_config=None, prepickle=None):
         if threshold > 1.0 or threshold < 0.0:
             raise ValueError("threshold must be in [0.0, 1.0]")
         if num_perm < 2:
@@ -127,7 +144,7 @@ class MinHashLSHEnsemble(object):
         self.indexes = [
             dict((r, MinHashLSH(
                 num_perm=self.h,
-                params=(int(self.h/r), r),
+                params=(int(self.h / r), r),
                 storage_config=self._get_storage_config(
                     basename, storage_config, partition, r),
                 prepickle=prepickle)) for r in rs)
@@ -150,7 +167,7 @@ class MinHashLSHEnsemble(object):
         return rs
 
     def _get_optimal_param(self, x, q):
-        i = np.searchsorted(self.xqs, float(x)/float(q), side='left')
+        i = np.searchsorted(self.xqs, float(x) / float(q), side='left')
         if i == len(self.params):
             i = i - 1
         return self.params[i]
@@ -193,7 +210,7 @@ class MinHashLSHEnsemble(object):
         for i, (lower, upper) in enumerate(partitions):
             self.lowers[i], self.uppers[i] = lower, upper
         # Insert into partitions.
-        entries.sort(key=lambda e : e[2])
+        entries.sort(key=lambda e: e[2])
         curr_part = 0
         for key, minhash, size in entries:
             if size > self.uppers[curr_part]:
@@ -244,12 +261,12 @@ class MinHashLSHEnsemble(object):
 
 if __name__ == "__main__":
     import numpy as np
+
     xqs = np.exp(np.linspace(-5, 5, 10))
     threshold = 0.5
     max_r = 8
     num_perm = 256
     false_negative_weight, false_positive_weight = 0.5, 0.5
     for xq in xqs:
-        b, r = _optimal_param(threshold, num_perm, max_r, xq,
-                false_positive_weight, false_negative_weight)
+        b, r = _optimal_param(threshold, num_perm, max_r, xq, false_positive_weight, false_negative_weight)
         print("threshold: %.2f, xq: %.3f, b: %d, r: %d" % (threshold, xq, b, r))

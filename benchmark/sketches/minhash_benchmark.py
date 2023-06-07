@@ -1,7 +1,9 @@
 '''
 Benchmarking the performance and accuracy of MinHash.
 '''
-import time, logging
+import logging
+import timeit
+
 from numpy import random
 import matplotlib
 matplotlib.use('Agg')
@@ -16,10 +18,10 @@ int_bytes = lambda x : ("a-%d-%d" % (x, x)).encode('utf-8')
 def run_perf(card, num_perm):
     m = MinHash(num_perm=num_perm)
     logging.info("MinHash using %d permutation functions" % num_perm)
-    start = time.clock()
+    start = timeit.default_timer()
     for i in range(card):
         m.update(int_bytes(i))
-    duration = time.clock() - start
+    duration = timeit.default_timer() - start
     logging.info("Digested %d hashes in %.4f sec" % (card, duration))
     return duration
 

@@ -15,9 +15,9 @@ def _run_minhash(A, B, data, seed, bs, num_perm):
     hasher = pyhash.murmur3_32()
     m1 = MinHash(num_perm=num_perm, hashobj=Hash)
     m2 = MinHash(num_perm=num_perm, hashobj=Hash)
-    for i in xrange(a_start, a_end):
+    for i in range(a_start, a_end):
         m1.update(hasher(data[i], seed=seed))
-    for i in xrange(b_start, b_end):
+    for i in range(b_start, b_end):
         m2.update(hasher(data[i], seed=seed))
     return [m1.jaccard(m2)] + \
             [_b_bit_minhash_jaccard(m1, m2, b) for b in bs]
@@ -26,7 +26,7 @@ def _run_test(A, B, data, n, bs, num_perm):
     logging.info("Run tests with A = (%d, %d), B = (%d, %d), n = %d"
             % (A[0], A[1], B[0], B[1], n))
     runs = np.array([_run_minhash(A, B, data, i, bs, num_perm)
-        for i in xrange(n)]).T
+        for i in range(n)]).T
     return runs
 
 def run_full_tests(attr_pairs, data, n, bs, num_perm):

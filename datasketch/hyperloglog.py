@@ -1,19 +1,15 @@
 import struct, copy
 import numpy as np
 import warnings
-try:
-    from .hyperloglog_const import _thresholds, _raw_estimate, _bias
-except ImportError:
-    # For Python 2
-    from hyperloglog_const import _thresholds, _raw_estimate, _bias
+from datasketch.hyperloglog_const import _thresholds, _raw_estimate, _bias
 
 from datasketch.hashfunc import sha1_hash32, sha1_hash64
 
 # Get the number of bits starting from the first non-zero bit to the right
-_bit_length = lambda bits : bits.bit_length()
+_bit_length = lambda bits: bits.bit_length()
 # For < Python 2.7
 if not hasattr(int, 'bit_length'):
-    _bit_length = lambda bits : len(bin(bits)) - 2 if bits > 0 else 0
+    _bit_length = lambda bits: len(bin(bits)) - 2 if bits > 0 else 0
 
 
 class HyperLogLog(object):
@@ -81,7 +77,7 @@ class HyperLogLog(object):
         # Check for use of hashobj and issue warning.
         if hashobj is not None:
             warnings.warn("hashobj is deprecated, use hashfunc instead.",
-                    DeprecationWarning)
+                          DeprecationWarning)
         self.hashfunc = hashfunc
         # Common settings
         self.alpha = self._get_alpha(self.p)
@@ -132,12 +128,12 @@ class HyperLogLog(object):
             int: The estimated cardinality.
         '''
         # Use HyperLogLog estimation function
-        e = self.alpha * float(self.m ** 2) / np.sum(2.0**(-self.reg))
+        e = self.alpha * float(self.m ** 2) / np.sum(2.0 ** (-self.reg))
         # Small range correction
         small_range_threshold = (5.0 / 2.0) * self.m
-        if abs(e-small_range_threshold)/small_range_threshold < 0.15:
-          warnings.warn(("Warning: estimate is close to error correction threshold. "
-                        +"Output may not satisfy HyperLogLog accuracy guarantee."))
+        if abs(e - small_range_threshold) / small_range_threshold < 0.15:
+            warnings.warn(("Warning: estimate is close to error correction threshold. "
+                           + "Output may not satisfy HyperLogLog accuracy guarantee."))
         if e <= small_range_threshold:
             num_zero = self.m - np.count_nonzero(self.reg)
             return self._linearcounting(num_zero)
@@ -260,18 +256,11 @@ class HyperLogLog(object):
     @classmethod
     def deserialize(cls, buf):
         size = struct.calcsize('B')
-        try:
-            p = struct.unpack_from('B', buf, 0)[0]
-        except TypeError:
-            p = struct.unpack_from('B', buffer(buf), 0)[0]
+        p = struct.unpack_from('B', buf, 0)[0]
         h = cls(p)
         offset = size
-        try:
-            h.reg = np.array(struct.unpack_from('%dB' % h.m,
-                buf, offset), dtype=np.int8)
-        except TypeError:
-            h.reg = np.array(struct.unpack_from('%dB' % h.m,
-                buffer(buf), offset), dtype=np.int8)
+        h.reg = np.array(struct.unpack_from('%dB' % h.m,
+                                            buf, offset), dtype=np.int8)
         return h
 
     def __getstate__(self):
@@ -281,18 +270,11 @@ class HyperLogLog(object):
 
     def __setstate__(self, buf):
         size = struct.calcsize('B')
-        try:
-            p = struct.unpack_from('B', buf, 0)[0]
-        except TypeError:
-            p = struct.unpack_from('B', buffer(buf), 0)[0]
+        p = struct.unpack_from('B', buf, 0)[0]
         self.__init__(p=p)
         offset = size
-        try:
-            self.reg = np.array(struct.unpack_from('%dB' % self.m,
-                buf, offset), dtype=np.int8)
-        except TypeError:
-            self.reg = np.array(struct.unpack_from('%dB' % self.m,
-                buffer(buf), offset), dtype=np.int8)
+        self.reg = np.array(struct.unpack_from('%dB' % self.m,
+                                               buf, offset), dtype=np.int8)
 
 
 class HyperLogLogPlusPlus(HyperLogLog):
@@ -323,9 +305,9 @@ class HyperLogLogPlusPlus(HyperLogLog):
     _hash_range_byte = 8
 
     def __init__(self, p=8, reg=None, hashfunc=sha1_hash64,
-            hashobj=None):
+                 hashobj=None):
         super(HyperLogLogPlusPlus, self).__init__(p=p, reg=reg,
-                hashfunc=hashfunc, hashobj=hashobj)
+                                                  hashfunc=hashfunc, hashobj=hashobj)
 
     def _get_threshold(self, p):
         return _thresholds[p - 4]
@@ -333,7 +315,7 @@ class HyperLogLogPlusPlus(HyperLogLog):
     def _estimate_bias(self, e, p):
         bias_vector = _bias[p - 4]
         estimate_vector = _raw_estimate[p - 4]
-        nearest_neighbors = np.argsort((e - estimate_vector)**2)[:6]
+        nearest_neighbors = np.argsort((e - estimate_vector) ** 2)[:6]
         return np.mean(bias_vector[nearest_neighbors])
 
     def count(self):
@@ -344,7 +326,7 @@ class HyperLogLogPlusPlus(HyperLogLog):
             if lc <= self._get_threshold(self.p):
                 return lc
         # Use HyperLogLog estimation function
-        e = self.alpha * float(self.m ** 2) / np.sum(2.0**(-self.reg))
+        e = self.alpha * float(self.m ** 2) / np.sum(2.0 ** (-self.reg))
         if e <= 5 * self.m:
             return e - self._estimate_bias(e, self.p)
         else:

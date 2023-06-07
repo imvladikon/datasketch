@@ -192,15 +192,9 @@ class LeanMinHash(MinHash):
         '''
         fmt_seed_size = "%sqi" % byteorder
         fmt_hash = byteorder + "%dI"
-        try:
-            seed, num_perm = struct.unpack_from(fmt_seed_size, buf, 0)
-        except TypeError:
-            seed, num_perm = struct.unpack_from(fmt_seed_size, buffer(buf), 0)
+        seed, num_perm = struct.unpack_from(fmt_seed_size, buf, 0)
         offset = struct.calcsize(fmt_seed_size)
-        try:
-            hashvalues = struct.unpack_from(fmt_hash % num_perm, buf, offset)
-        except TypeError:
-            hashvalues = struct.unpack_from(fmt_hash % num_perm, buffer(buf), offset)
+        hashvalues = struct.unpack_from(fmt_hash % num_perm, buf, offset)
         lmh = object.__new__(LeanMinHash)
         lmh._initialize_slots(seed, hashvalues)
         return lmh
@@ -213,15 +207,9 @@ class LeanMinHash(MinHash):
         return buf
 
     def __setstate__(self, buf):
-        try:
-            seed, num_perm = struct.unpack_from('qi', buf, 0)
-        except TypeError:
-            seed, num_perm = struct.unpack_from('qi', buffer(buf), 0)
+        seed, num_perm = struct.unpack_from('qi', buf, 0)
         offset = struct.calcsize('qi')
-        try:
-            hashvalues = struct.unpack_from('%dI' % num_perm, buf, offset)
-        except TypeError:
-            hashvalues = struct.unpack_from('%dI' % num_perm, buffer(buf), offset)
+        hashvalues = struct.unpack_from('%dI' % num_perm, buf, offset)
         self._initialize_slots(seed, hashvalues)
 
     def __hash__(self):
