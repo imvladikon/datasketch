@@ -1,5 +1,6 @@
-import random, copy, struct
+import copy
 import warnings
+
 import numpy as np
 
 from datasketch.hashfunc import sha1_hash32
